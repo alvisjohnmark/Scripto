@@ -1,4 +1,4 @@
 start {
-    display("Boto ni aldrin")
+    display("Hello,World")
 }
 
