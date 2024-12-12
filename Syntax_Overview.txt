@@ -1,0 +1,21 @@
+Starting function
+start{
+ //code goes here
+}
+
+Display a string or variable
+display(parameter)
+
+Declare a variable
+int: num => 10
+float: total => 20
+string: name => “John Doe”
+
+
+Example sum of 2 variables
+Int: num1 => 1
+int : num2 => 2
+Int: sum => use.num1 + use.num2
+display(use.sum)
+
+“use” is used like an object
