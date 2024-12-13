@@ -1,0 +1,4 @@
+start {
+    int: num1 => "asda"
+    display(use.num1)
+}

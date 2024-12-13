@@ -1,4 +1,0 @@
-start {
-    display("Hello,World")
-}
-
