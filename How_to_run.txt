@@ -1,0 +1,5 @@
+Open powershell (ctrl + `)
+Type this to run code
+python -u "c:\path_to_the_interpreter" or simply click the run button in the scripto_interpreter.py
+
+Note: scripto.scr and scripto_interpreter must be in the same folder.
