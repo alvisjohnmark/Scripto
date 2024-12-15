@@ -1,4 +1,6 @@
-start {
-    int: num1 => "asda"
-    display(use.num1)
+start{
+    boolean: isActive => true
+    boolean: isComplete => false
+    display(use.isActive)
+    display(use.isComplete)
 }

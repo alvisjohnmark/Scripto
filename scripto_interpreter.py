@@ -4,7 +4,8 @@ import re  # Import regular expressions for tokenizing the input code
 def lexer(code):
     token_spec = [
         ('KEYWORD', r'start|display|use'),       # Keywords: start, display, use
-        ('DATATYPE', r'int|float|string'),       # Data types: int, float, string
+        ('DATATYPE', r'int|float|string|boolean'), # Data types: int, float, string, boolean
+        ('BOOLEAN', r'true|false'),              # Boolean values: true, false
         ('IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),  # Variable names
         ('ASSIGN', r'=>' ),                     # Assignment operator
         ('NUMBER', r'\d+(\.\d+)?'),             # Numbers (integer or float)
@@ -26,12 +27,12 @@ def lexer(code):
     for mo in re.finditer(token_regex, code):
         kind = mo.lastgroup  # Token type (e.g., KEYWORD, NUMBER)
         value = mo.group()   # Matched value
-        if kind == 'SKIP':   # Skip whitespace
+        if kind == 'SKIP':  # Skip whitespace
             continue
         tokens.append((kind, value))  # Append the token to the list
     return tokens  # Return the list of tokens
 
-#Converts tokens into an Abstract Syntax Tree (AST)
+# Converts tokens into an Abstract Syntax Tree (AST)
 def parser(tokens):
     ast = []  # To store the structure of the program
     i = 0     # Index to iterate through the tokens
@@ -87,11 +88,15 @@ def interpreter(ast):
                 return float(value) if '.' in value else int(value)
             elif kind == 'STRING':  # Strip quotes from strings
                 return value.strip('"')
+            elif kind == 'BOOLEAN':  # Return Boolean value
+                return value == 'true'
             elif kind == 'IDENTIFIER':  # Lookup variable value
                 if value in variables:
                     return variables[value]
                 else:
                     raise ValueError(f"Undefined variable: {value}")
+            else:
+                raise ValueError(f"Unknown expression: {expr}")
 
         elif len(expr) >= 3:  # Composite expressions with operators
             if expr[0][0] == 'KEYWORD' and expr[0][1] == 'use' and expr[1][0] == 'DOT':
@@ -129,6 +134,8 @@ def interpreter(ast):
                     raise TypeError(f"Type error: Variable '{node['name']}' expected an integer but got {type(value).__name__}")
                 elif node['dataType'] == 'float' and not isinstance(value, (int, float)):
                     raise TypeError(f"Type error: Variable '{node['name']}' expected a float but got {type(value).__name__}")
+                elif node['dataType'] == 'boolean' and not isinstance(value, bool):
+                    raise TypeError(f"Type error: Variable '{node['name']}' expected a Boolean but got {type(value).__name__}")
                 variables[node['name']] = value  # Store the variable value
             elif node['type'] == 'Display':  # Display statement
                 result = evaluate_expression(node['expression'])
@@ -140,17 +147,10 @@ def interpreter(ast):
         if node['type'] == 'Start':  # Execute the start block
             execute_block(node['body'])
 
-# Read the source code file
 with open("scripto.scr", "r") as file:
     code = file.read()
 
-# Tokenize the code
+# Tokenize, parse, and interpret the code
 tokens = lexer(code)
-print("Tokens:", tokens)
-
-# Parse tokens into an AST
 ast = parser(tokens)
-print("AST:", ast)
-
-# Interpret the AST
 interpreter(ast)
