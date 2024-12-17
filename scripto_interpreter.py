@@ -81,42 +81,78 @@ def interpreter(ast):
     variables = {}  # Store variable names and their values
 
     def evaluate_expression(expr):
-        if len(expr) == 1:  # Single token case
-            kind, value = expr[0]
+    #"""Evaluate arithmetic expressions."""
+        if not expr:
+            raise ValueError("Empty expression cannot be evaluated.")
+
+        # Ensure that the expression does not start or end with an operator
+        if expr[0][0] == 'OP' or expr[-1][0] == 'OP':
+            raise SyntaxError("Expression cannot start or end with an operator.")
+
+        # Start with the first value in the expression
+        result = None
+        operator = None
+
+        # Process tokens one by one
+        for i, (kind, value) in enumerate(expr):
             if kind == 'NUMBER':  # Convert numbers to int or float
-                return float(value) if '.' in value else int(value)
-            elif kind == 'STRING':  # Strip quotes from strings
-                return value.strip('"')
-            elif kind == 'BOOLEAN':  # Return Boolean value
-                return value == 'true'
+                value = float(value) if '.' in value else int(value)
+                if result is None:
+                    result = value
+                elif operator:
+                    result = apply_operator(result, operator, value)
+                    operator = None  # Reset the operator
+                elif i > 0 and expr[i-1][0] == 'NUMBER':
+                # This checks if two numbers are adjacent without an operator between them
+                    raise SyntaxError(f"Syntax error: Two numbers cannot appear consecutively without an operator. Found: {expr[i-1][1]} and {value}")
+
             elif kind == 'IDENTIFIER':  # Lookup variable value
                 if value in variables:
-                    return variables[value]
+                    value = variables[value]
+                    if result is None:
+                        result = value
+                    elif operator:
+                        result = apply_operator(result, operator, value)
+                        operator = None  # Reset the operator
                 else:
                     raise ValueError(f"Undefined variable: {value}")
+
+            elif kind == 'OP':  # Save the operator for the next operation
+                if operator is not None:
+                    raise SyntaxError(f"Consecutive operators are not allowed: {expr[i-1][1]} and {value}")
+                operator = value
+
             else:
-                raise ValueError(f"Unknown expression: {expr}")
-        
-        elif len(expr) == 3:  # Composite expressions with operators
-            left = evaluate_expression([expr[0]])
-            op = expr[1][1]
-            right = evaluate_expression([expr[2]])
-            
-            # Comparison and arithmetic operators
-            if op == '+': return left + right
-            elif op == '-': return left - right
-            elif op == '*': return left * right
-            elif op == '/': return left / right
-            elif op == '>': return left > right
-            elif op == '<': return left < right
-            elif op == '>=': return left >= right
-            elif op == '<=': return left <= right
-            elif op == '==': return left == right
-            elif op == '!=': return left != right
-            else:
-                raise ValueError(f"Unknown operator: {op}")
-        
-        return None
+                raise ValueError(f"Invalid token in expression: {kind} ({value})")
+
+        return result
+
+
+    def apply_operator(left, operator, right):
+        #"""Applies an arithmetic operator between two operands."""
+        if operator == '+':
+            return left + right
+        elif operator == '-':
+            return left - right
+        elif operator == '*':
+            return left * right
+        elif operator == '/':
+            return left / right
+        elif operator == '>':
+            return left > right
+        elif operator == '<':
+            return left < right
+        elif operator == '>=':
+            return left >= right
+        elif operator == '<=':
+            return left <= right
+        elif operator == '==':
+            return left == right
+        elif operator == '!=':
+            return left != right
+        else:
+            raise ValueError(f"Unknown operator: {operator}")
+
 
 
 

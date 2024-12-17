@@ -1,6 +1,8 @@
 start {
-    int: num1 => 102
-    int: num2 => 103
-    int: isEqual => num1 + num2
-    display(isEqual)
+    int: num1 => 1
+    int: num2 => 2
+    int: num3 => 3
+    int: num4 => 4
+    int: sum => num1 + num2 + num3 + num4
+    display(sum)
 }
