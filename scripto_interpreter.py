@@ -10,7 +10,7 @@ def lexer(code):
         ('ASSIGN', r'=>' ),                     # Assignment operator
         ('NUMBER', r'\d+(\.\d+)?'),             # Numbers (integer or float)
         ('STRING', r'\".*?\"'),                 # Strings enclosed in quotes
-        ('OP', r'[+\-*/><=!]'),                  # Arithmetic and comparison operators
+        ('OP', r'==|!=|>=|<=|[+\-*/><=!]'),                # Arithmetic and comparison operators
         ('OPEN_BRACE', r'\{'),                  # Opening brace
         ('CLOSE_BRACE', r'\}'),                 # Closing brace
         ('COLON', r':'),                        # Colon
@@ -63,32 +63,6 @@ def parser(tokens):
             # Add a display node to the AST
             ast.append({'type': 'Display', 'expression': expr})
 
-        elif token == 'KEYWORD' and value == 'whatIf':  # Handle conditional statements
-            i += 1
-            condition = []  # Collect the condition expression
-            while i < len(tokens) and tokens[i][0] != 'OPEN_BRACE':
-                condition.append(tokens[i])
-                i += 1
-            if tokens[i][0] == 'OPEN_BRACE':  # Check for opening brace
-                i += 1
-                body = []  # Collect body tokens
-                while i < len(tokens) and tokens[i][0] != 'CLOSE_BRACE':
-                    body.append(tokens[i])
-                    i += 1
-                i += 1  # Skip the closing brace
-                
-                # Look for an "else" block immediately after
-                else_body = []
-                if i < len(tokens) and tokens[i][0] == 'KEYWORD' and tokens[i][1] == 'else':
-                    i += 1
-                    if tokens[i][0] == 'OPEN_BRACE':
-                        i += 1
-                        while i < len(tokens) and tokens[i][0] != 'CLOSE_BRACE':
-                            else_body.append(tokens[i])
-                            i += 1
-                        i += 1  # Skip the closing brace
-                # Add the conditional node to the AST
-                ast.append({'type': 'Conditional', 'condition': condition, 'body': parser(body), 'elseBody': parser(else_body)})
 
         elif token == 'KEYWORD' and value == 'start':  # Handle start block
             i += 1
@@ -106,47 +80,44 @@ def parser(tokens):
 def interpreter(ast):
     variables = {}  # Store variable names and their values
 
-    # Evaluate expressions recursively
     def evaluate_expression(expr):
         if len(expr) == 1:  # Single token case
             kind, value = expr[0]
             if kind == 'NUMBER':  # Convert numbers to int or float
-                result = float(value) if '.' in value else int(value)
+                return float(value) if '.' in value else int(value)
             elif kind == 'STRING':  # Strip quotes from strings
-                result = value.strip('"')
+                return value.strip('"')
             elif kind == 'BOOLEAN':  # Return Boolean value
-                result = value == 'true'
+                return value == 'true'
             elif kind == 'IDENTIFIER':  # Lookup variable value
                 if value in variables:
-                    result = variables[value]
+                    return variables[value]
                 else:
                     raise ValueError(f"Undefined variable: {value}")
             else:
                 raise ValueError(f"Unknown expression: {expr}")
         
-            return result
-
-        elif len(expr) >= 3:  # Composite expressions with operators
+        elif len(expr) == 3:  # Composite expressions with operators
             left = evaluate_expression([expr[0]])
             op = expr[1][1]
-            print("Expression: ", expr)
-            right = evaluate_expression(expr[2:])
-            if op == '+': result = left + right
-            elif op == '-': result = left - right
-            elif op == '*': result = left * right
-            elif op == '/': result = left / right
-            elif op == '>': result = left > right
-            elif op == '<': result = left < right
-            elif op == '>=': result = left >= right
-            elif op == '<=': result = left <= right
-            elif op == '==': result = left == right
-            elif op == '!=': result = left != right
+            right = evaluate_expression([expr[2]])
+            
+            # Comparison and arithmetic operators
+            if op == '+': return left + right
+            elif op == '-': return left - right
+            elif op == '*': return left * right
+            elif op == '/': return left / right
+            elif op == '>': return left > right
+            elif op == '<': return left < right
+            elif op == '>=': return left >= right
+            elif op == '<=': return left <= right
+            elif op == '==': return left == right
+            elif op == '!=': return left != right
             else:
                 raise ValueError(f"Unknown operator: {op}")
         
-            return result
-
         return None
+
 
 
     # Execute each block in the AST
@@ -166,17 +137,7 @@ def interpreter(ast):
 
             elif node['type'] == 'Display':  # Display statement
                 result = evaluate_expression(node['expression'])
-                print(result)  # Print the evaluated result to the console
-            elif node['type'] == 'Conditional':  # Handle Conditional statements             
-                condition_result = evaluate_expression(node['condition'])
-                if condition_result:
-                    execute_block(node['body'])  # Execute the IF block
-                    return 
-                else:
-                    if 'elseBody' in node and node['elseBody']:
-                        execute_block(node['elseBody'])  # Execute the ELSE bloc
-                    return 
-                   
+                print(result)  # Print the evaluated result to the consol
 
             elif node['type'] == 'Start':  # Start block
                 execute_block(node['body'])  # Execute the start block's body
@@ -191,5 +152,4 @@ with open("scripto.scr", "r") as file:
     
 tokens = lexer(code)  # Lexical analysis
 ast = parser(tokens)  # Parse into AST
-print(ast)
 interpreter(ast)  # Interpret and execute
