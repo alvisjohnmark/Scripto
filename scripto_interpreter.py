@@ -3,14 +3,14 @@ import re  # Import regular expressions for tokenizing the input code
 # **Lexer**: Converts raw code into tokens
 def lexer(code):
     token_spec = [
-        ('KEYWORD', r'start|display|use'),       # Keywords: start, display, use
+        ('KEYWORD', r'start|display|use|whatIf|alsoWhatIf|else'),       # Keywords: start, display, use, conditionals
         ('DATATYPE', r'int|float|string|boolean'), # Data types: int, float, string, boolean
         ('BOOLEAN', r'true|false'),              # Boolean values: true, false
         ('IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),  # Variable names
         ('ASSIGN', r'=>' ),                     # Assignment operator
         ('NUMBER', r'\d+(\.\d+)?'),             # Numbers (integer or float)
         ('STRING', r'\".*?\"'),                 # Strings enclosed in quotes
-        ('OP', r'[+\-*/]'),                     # Arithmetic operators
+        ('OP', r'[+\-*/><=!]'),                  # Arithmetic and comparison operators
         ('OPEN_BRACE', r'\{'),                  # Opening brace
         ('CLOSE_BRACE', r'\}'),                 # Closing brace
         ('COLON', r':'),                        # Colon
@@ -63,6 +63,33 @@ def parser(tokens):
             # Add a display node to the AST
             ast.append({'type': 'Display', 'expression': expr})
 
+        elif token == 'KEYWORD' and value == 'whatIf':  # Handle conditional statements
+            i += 1
+            condition = []  # Collect the condition expression
+            while i < len(tokens) and tokens[i][0] != 'OPEN_BRACE':
+                condition.append(tokens[i])
+                i += 1
+            if tokens[i][0] == 'OPEN_BRACE':  # Check for opening brace
+                i += 1
+                body = []  # Collect body tokens
+                while i < len(tokens) and tokens[i][0] != 'CLOSE_BRACE':
+                    body.append(tokens[i])
+                    i += 1
+                i += 1  # Skip the closing brace
+                
+                # Look for an "else" block immediately after
+                else_body = []
+                if i < len(tokens) and tokens[i][0] == 'KEYWORD' and tokens[i][1] == 'else':
+                    i += 1
+                    if tokens[i][0] == 'OPEN_BRACE':
+                        i += 1
+                        while i < len(tokens) and tokens[i][0] != 'CLOSE_BRACE':
+                            else_body.append(tokens[i])
+                            i += 1
+                        i += 1  # Skip the closing brace
+                # Add the conditional node to the AST
+                ast.append({'type': 'Conditional', 'condition': condition, 'body': parser(body), 'elseBody': parser(else_body)})
+
         elif token == 'KEYWORD' and value == 'start':  # Handle start block
             i += 1
             if tokens[i][0] == 'OPEN_BRACE':  # Check for opening brace
@@ -76,7 +103,6 @@ def parser(tokens):
         i += 1
     return ast  # Return the generated AST
 
-# **Interpreter**: Executes the AST
 def interpreter(ast):
     variables = {}  # Store variable names and their values
 
@@ -85,43 +111,43 @@ def interpreter(ast):
         if len(expr) == 1:  # Single token case
             kind, value = expr[0]
             if kind == 'NUMBER':  # Convert numbers to int or float
-                return float(value) if '.' in value else int(value)
+                result = float(value) if '.' in value else int(value)
             elif kind == 'STRING':  # Strip quotes from strings
-                return value.strip('"')
+                result = value.strip('"')
             elif kind == 'BOOLEAN':  # Return Boolean value
-                return value == 'true'
+                result = value == 'true'
             elif kind == 'IDENTIFIER':  # Lookup variable value
                 if value in variables:
-                    return variables[value]
+                    result = variables[value]
                 else:
                     raise ValueError(f"Undefined variable: {value}")
             else:
                 raise ValueError(f"Unknown expression: {expr}")
+        
+            return result
 
         elif len(expr) >= 3:  # Composite expressions with operators
-            if expr[0][0] == 'KEYWORD' and expr[0][1] == 'use' and expr[1][0] == 'DOT':
-                var_name = expr[2][1]  # Variable after "use."
-                if var_name not in variables:
-                    raise ValueError(f"Undefined variable in 'use.': {var_name}")
-                left = variables[var_name]
-                if len(expr) > 3:  # Handle operations
-                    op = expr[3][1]
-                    right = evaluate_expression(expr[4:])
-                    if op == '+': return left + right
-                    elif op == '-': return left - right
-                    elif op == '*': return left * right
-                    elif op == '/': return left / right
-                return left
-
-            # Standard composite expression
             left = evaluate_expression([expr[0]])
             op = expr[1][1]
+            print("Expression: ", expr)
             right = evaluate_expression(expr[2:])
-            if op == '+': return left + right
-            elif op == '-': return left - right
-            elif op == '*': return left * right
-            elif op == '/': return left / right
+            if op == '+': result = left + right
+            elif op == '-': result = left - right
+            elif op == '*': result = left * right
+            elif op == '/': result = left / right
+            elif op == '>': result = left > right
+            elif op == '<': result = left < right
+            elif op == '>=': result = left >= right
+            elif op == '<=': result = left <= right
+            elif op == '==': result = left == right
+            elif op == '!=': result = left != right
+            else:
+                raise ValueError(f"Unknown operator: {op}")
+        
+            return result
+
         return None
+
 
     # Execute each block in the AST
     def execute_block(body):
@@ -135,22 +161,35 @@ def interpreter(ast):
                 elif node['dataType'] == 'float' and not isinstance(value, (int, float)):
                     raise TypeError(f"Type error: Variable '{node['name']}' expected a float but got {type(value).__name__}")
                 elif node['dataType'] == 'boolean' and not isinstance(value, bool):
-                    raise TypeError(f"Type error: Variable '{node['name']}' expected a Boolean but got {type(value).__name__}")
-                variables[node['name']] = value  # Store the variable value
+                    raise TypeError(f"Type error: Variable '{node['name']}' expected a boolean but got {type(value).__name__}")
+                variables[node['name']] = value  # Assign the value to the variable
+
             elif node['type'] == 'Display':  # Display statement
                 result = evaluate_expression(node['expression'])
-                if result is not None:
-                    print(result)  # Print the evaluated result
+                print(result)  # Print the evaluated result to the console
+            elif node['type'] == 'Conditional':  # Handle Conditional statements             
+                condition_result = evaluate_expression(node['condition'])
+                if condition_result:
+                    execute_block(node['body'])  # Execute the IF block
+                    return 
+                else:
+                    if 'elseBody' in node and node['elseBody']:
+                        execute_block(node['elseBody'])  # Execute the ELSE bloc
+                    return 
+                   
 
-    # Start interpreting the AST
-    for node in ast:
-        if node['type'] == 'Start':  # Execute the start block
-            execute_block(node['body'])
+            elif node['type'] == 'Start':  # Start block
+                execute_block(node['body'])  # Execute the start block's body
+
+
+    # Start execution with the root AST body
+    execute_block(ast)
+
 
 with open("scripto.scr", "r") as file:
     code = file.read()
-
-# Tokenize, parse, and interpret the code
-tokens = lexer(code)
-ast = parser(tokens)
-interpreter(ast)
+    
+tokens = lexer(code)  # Lexical analysis
+ast = parser(tokens)  # Parse into AST
+print(ast)
+interpreter(ast)  # Interpret and execute

@@ -1,6 +1,9 @@
-start{
-    boolean: isActive => true
-    boolean: isComplete => false
-    display(use.isActive)
-    display(use.isComplete)
+start {
+    int: num1 => 200
+    int: num2 => 100
+    whatIf num1 == num2 {
+        display("This is true")
+    } else {
+        display("This is false")
+    }
 }
